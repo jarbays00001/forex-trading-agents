@@ -28,9 +28,13 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           TRADINGAGENTS_DEEP_THINK_LLM: gemini-3.1-flash-lite
           TRADINGAGENTS_QUICK_THINK_LLM: gemini-3.1-flash-lite
+          # Variabel di bawah ini yang menyelesaikan error "No terminal"
+          TRADINGAGENTS_OUTPUT_LANGUAGE: "English"
+          TRADINGAGENTS_MAX_DEBATE_ROUNDS: "1"
+          TRADINGAGENTS_MAX_RISK_ROUNDS: "1"
         run: |
-          # Menggunakan printf untuk otomatis menekan Enter (memilih default) pada menu interaktif
-          printf '\n\n\n\n\n\n\n\n\n\n' | tradingagents --ticker "EURUSD=X" --date $(date +'%Y-%m-%d') --analysts market --save --no-show
+          # Menjalankan analisis untuk EURUSD
+          tradingagents --ticker "EURUSD=X" --date $(date +'%Y-%m-%d') --analysts market --save --no-show
 
       - name: Extract SL/TP & Create Summary
         run: |
