@@ -1,0 +1,74 @@
+name: Forex Analysis
+
+on:
+  schedule:
+    - cron: '0 8 * * 1-5' # Setiap hari kerja jam 08:00 UTC (15:00 WIB)
+  workflow_dispatch: # Memungkinkan menjalankan manual dari tab Actions
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install .
+
+      - name: Run TradingAgents Analysis
+        env:
+          TRADINGAGENTS_LLM_PROVIDER: google
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          TRADINGAGENTS_DEEP_THINK_LLM: gemini-3.1-flash-lite
+          TRADINGAGENTS_QUICK_THINK_LLM: gemini-3.1-flash-lite
+        run: |
+          # Menjalankan analisis untuk EURUSD
+          tradingagents --ticker "EURUSD=X" --date $(date +'%Y-%m-%d') --analysts market --save --no-show
+
+      - name: Extract SL/TP & Create Summary
+        run: |
+          # Skrip Python untuk mengekstrak data dari laporan
+          python3 -c "
+          import re, glob, os
+          
+          # Cari file laporan terbaru
+          list_of_files = glob.glob('/home/runner/.tradingagents/logs/reports/*/complete_report.md')
+          if not list_of_files:
+              print('Laporan tidak ditemukan.')
+              exit(0)
+          
+          latest_file = max(list_of_files, key=os.path.getctime)
+          with open(latest_file, 'r') as f:
+              content = f.read()
+          
+          # Cari pola angka (Entry, SL, TP)
+          entry_match = re.search(r'[Ee]ntry[^\d]*([\d.,]+)', content)
+          sl_match = re.search(r'[Ss]top[- ]?[Ll]oss[^\d]*([\d.,]+)', content)
+          tp_match = re.search(r'[Tt]ake[- ]?[Pp]rofit[^\d]*([\d.,]+)', content)
+          
+          # Buat ringkasan
+          summary = '## Ringkasan Eksekusi Forex\n\n'
+          summary += f'- **Entry**: {entry_match.group(1) if entry_match else \"N/A\"}\n'
+          summary += f'- **Stop Loss**: {sl_match.group(1) if sl_match else \"N/A\"}\n'
+          summary += f'- **Take Profit**: {tp_match.group(1) if tp_match else \"N/A\"}\n'
+          
+          # Cetak ke konsol GitHub Actions
+          print(summary)
+          
+          # Simpan ke file di root repo agar bisa di-upload
+          with open('RINGKASAN_TRADING.md', 'w') as f:
+              f.write(summary)
+          "
+      
+      - name: Upload Summary as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trading-summary
+          path: RINGKASAN_TRADING.md
