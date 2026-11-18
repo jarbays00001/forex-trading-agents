@@ -254,8 +254,8 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
 entry_price: Optional[str] = Field(default=None, description="The absolute entry price")
 stop_loss: Optional[str] = Field(default=None, description="The absolute stop loss price")
 take_profit: Optional[str] = Field(default=None, description="The absolute take profit price")
-position_size: Optional[str] = Field(default=None, description="The position size percentage (e.g., 1.5%)")
-    return "\n".join(parts)
+position_size: Optional[str] = Field(default=None, description="The position size percentage (e.g., 1.5%)") 
+return "\n".join(parts)
 
 
 # ---------------------------------------------------------------------------
