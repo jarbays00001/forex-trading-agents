@@ -22,16 +22,16 @@ jobs:
           pip install --upgrade pip
           pip install .
 
-      - name: Run TradingAgents Analysis
-        env:
-          TRADINGAGENTS_LLM_PROVIDER: google
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          TRADINGAGENTS_DEEP_THINK_LLM: gemini-3.1-flash-lite
-          TRADINGAGENTS_QUICK_THINK_LLM: gemini-3.1-flash-lite
-        run: |
-          # Menjalankan analisis untuk EURUSD
-          tradingagents --ticker "EURUSD=X" --date $(date +'%Y-%m-%d') --analysts market --save --no-show
-
+- name: Run TradingAgents Analysis
+  env:
+    TRADINGAGENTS_LLM_PROVIDER: google
+    GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+    TRADINGAGENTS_DEEP_THINK_LLM: gemini-3.1-flash-lite
+    TRADINGAGENTS_QUICK_THINK_LLM: gemini-3.1-flash-lite
+  run: |
+    # Menggunakan 'yes ""' untuk otomatis menekan Enter pada menu interaktif
+    yes "" | tradingagents --ticker "EURUSD=X" --date $(date +'%Y-%m-%d') --analysts market --save --no-show
+      
       - name: Extract SL/TP & Create Summary
         run: |
           # Skrip Python untuk mengekstrak data dari laporan
