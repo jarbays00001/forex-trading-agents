@@ -219,55 +219,17 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
 
 
 class PortfolioDecision(BaseModel):
-    """Structured output produced by the Portfolio Manager.
+    rating: PortfolioRating
+    executive_summary: str
+    investment_thesis: str
+    price_target: Optional[str] = None
+    time_horizon: Optional[str] = None
 
-    The model fills every field as part of its primary LLM call; no separate
-    extraction pass is required. Field descriptions double as the model's
-    output instructions, so the prompt body only needs to convey context and
-    the rating-scale guidance.
-    """
-
-    rating: PortfolioRating = Field(
-        description=(
-            "The final position rating. Exactly one of Buy / Overweight / Hold / "
-            "Underweight / Sell, picked based on the analysts' debate. "
-            "Conflicting arguments alone are not a reason to Hold: commit to the "
-            "stronger side, sized by how decisively it wins. Choose Hold only "
-            "when the evidence is still balanced after weighing, or too thin to "
-            "support a call."
-        ),
-    )
-    executive_summary: str = Field(
-        description=(
-            "A concise action plan covering entry strategy, position sizing, "
-            "key risk levels, and time horizon. Two to four sentences."
-        ),
-    )
-    investment_thesis: str = Field(
+    # --- FIELD TAMBAHAN UNTUK SL/TP (Diperbaiki) ---
     entry_price: Optional[str] = Field(default=None, description="The absolute entry price")
     stop_loss: Optional[str] = Field(default=None, description="The absolute stop loss price")
     take_profit: Optional[str] = Field(default=None, description="The absolute take profit price")
     position_size: Optional[str] = Field(default=None, description="The position size percentage")
-        description=(
-            "Detailed reasoning anchored in specific evidence from the analysts' "
-            "debate. If prior lessons are referenced in the prompt context, "
-            "incorporate them; otherwise rely solely on the current analysis."
-        ),
-    )
-    price_target: float | None = Field(
-        default=None,
-        description="Optional target price in the instrument's quote currency.",
-    )
-    time_horizon: str | None = Field(
-        default=None,
-        description="Optional recommended holding period, e.g. '3-6 months'.",
-    )
-
-    @field_validator("price_target", mode="before")
-    @classmethod
-    def _nullish_float_to_none(cls, v):
-        return _coerce_optional_float(v)
-
 
 def render_pm_decision(decision: PortfolioDecision) -> str:
     """Render a PortfolioDecision back to the markdown shape the rest of the system expects.
