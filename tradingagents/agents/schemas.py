@@ -244,6 +244,10 @@ class PortfolioDecision(BaseModel):
         ),
     )
     investment_thesis: str = Field(
+    entry_price: Optional[str] = Field(default=None, description="The absolute entry price")
+    stop_loss: Optional[str] = Field(default=None, description="The absolute stop loss price")
+    take_profit: Optional[str] = Field(default=None, description="The absolute take profit price")
+    position_size: Optional[str] = Field(default=None, description="The position size percentage")
         description=(
             "Detailed reasoning anchored in specific evidence from the analysts' "
             "debate. If prior lessons are referenced in the prompt context, "
@@ -285,6 +289,10 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     target = decision.price_target if decision.price_target is not None else "not provided"
     parts.extend(["", f"**Price Target**: {target}"])
     parts.extend(["", f"**Time Horizon**: {decision.time_horizon or 'not provided'}"])
+entry_price: Optional[str] = Field(default=None, description="The absolute entry price")
+stop_loss: Optional[str] = Field(default=None, description="The absolute stop loss price")
+take_profit: Optional[str] = Field(default=None, description="The absolute take profit price")
+position_size: Optional[str] = Field(default=None, description="The position size percentage (e.g., 1.5%)")
     return "\n".join(parts)
 
 

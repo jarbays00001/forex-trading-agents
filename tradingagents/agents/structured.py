@@ -93,3 +93,16 @@ def invoke_structured_or_freetext(
     if result is not None:
         return render(result)
     return plain_llm.invoke(prompt).content
+
+def render_pm_decision(decision: PortfolioDecision) -> str:
+    rating_str = getattr(decision.rating, 'value', decision.rating)
+    return f"""**Rating**: {rating_str}
+
+**Executive Summary**:
+{decision.executive_summary}
+
+**Investment Thesis**:
+{decision.investment_thesis}
+
+**Time Horizon**: {decision.time_horizon or 'N/A'}
+"""
