@@ -66,6 +66,13 @@ def render_fundamentals_report(report: FundamentalsReport) -> str:
 
 # --- MANAGER DECISIONS ---
 
+class ResearchPlan(BaseModel):
+    investment_plan: str = Field(description="The detailed investment plan based on the debate")
+    rationale: str = Field(description="The rationale behind the plan")
+
+def render_research_plan(plan: ResearchPlan) -> str:
+    return f"**Investment Plan**:\n{plan.investment_plan}\n\n**Rationale**:\n{plan.rationale}"
+
 class TraderProposal(BaseModel):
     action: Literal["Buy", "Sell", "Hold"] = Field(description="The recommended trading action")
     reasoning: str = Field(description="The reasoning behind the action")
