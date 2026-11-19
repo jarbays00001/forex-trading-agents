@@ -1,8 +1,11 @@
 import os
-os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "false"
-os.environ["GOOGLE_GENAI_USE_API_KEY"] = "true"from enum import Enum
+from enum import Enum
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
+
+# Konfigurasi SDK Google GenAI
+os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "false"
+os.environ["GOOGLE_GENAI_USE_API_KEY"] = "true"
 
 # --- ANALYST REPORTS ---
 
