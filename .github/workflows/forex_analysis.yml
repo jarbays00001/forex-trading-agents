@@ -32,12 +32,10 @@ jobs:
           TRADINGAGENTS_MAX_DEBATE_ROUNDS: "1"
           TRADINGAGENTS_MAX_RISK_ROUNDS: "1"
         run: |
-          # Menjalankan analisis untuk EURUSD
           tradingagents --ticker "EURUSD=X" --date $(date +'%Y-%m-%d') --analysts market --save --no-show
 
-      - name: Extract SL/TP & Create Summary
+      - name: Extract, Validate & Create Summary
         run: |
-          # Skrip Python untuk mengekstrak data dari laporan
           python3 -c "
           import re, glob, os
           
@@ -51,31 +49,72 @@ jobs:
           with open(latest_file, 'r') as f:
               content = f.read()
           
-          # 1. Ekstrak Sinyal (BUY/SELL/HOLD)
+          # 1. Ekstrak Sinyal
           rating_match = re.search(r'(?i)\*\*Rating\*\*:\s*([A-Za-z]+)', content)
           if not rating_match:
               rating_match = re.search(r'(?i)FINAL TRANSACTION PROPOSAL:\s*\*\*([A-Za-z]+)\*\*', content)
           signal = rating_match.group(1).upper() if rating_match else 'N/A'
 
-          # 2. Ekstrak Angka (Entry, SL, TP)
-          entry_match = re.search(r'[Ee]ntry(?:[^\d]*)([1-9]\d*[.,]\d{2,5})', content)
-          sl_match = re.search(r'[Ss]top[- ]?[Ll]oss(?:[^\d]*)([1-9]\d*[.,]\d{2,5})', content)
-          tp_match = re.search(r'[Tt]ake[- ]?[Pp]rofit(?:[^\d]*)([1-9]\d*[.,]\d{2,5})', content)
-          
-          # 3. Buat Ringkasan
+          # 2. Ekstrak Angka & ATR
+          entry_str = re.search(r'[Ee]ntry(?:[^\d]*)([1-9]\d*[.,]\d+)', content)
+          sl_str = re.search(r'[Ss]top[- ]?[Ll]oss(?:[^\d]*)([1-9]\d*[.,]\d+)', content)
+          tp_str = re.search(r'[Tt]ake[- ]?[Pp]rofit(?:[^\d]*)([1-9]\d*[.,]\d+)', content)
+          atr_str = re.search(r'(?i)ATR[^\d]*([0-9][.,]\d+)', content)
+
+          # 3. Validasi & Perbaikan Logika Matematika
+          try:
+              entry = float(entry_str.group(1).replace(',', '.')) if entry_str else 0.0
+              sl = float(sl_str.group(1).replace(',', '.')) if sl_str else 0.0
+              tp = float(tp_str.group(1).replace(',', '.')) if tp_str else 0.0
+              atr = float(atr_str.group(1).replace(',', '.')) if atr_str else 0.0050
+              
+              # Jika Entry terlalu pendek (misal 1.12), format ulang ke 5 desimal
+              if entry > 0 and len(str(entry).split('.')[-1]) < 4:
+                  entry = round(entry, 5)
+                  
+              # Perbaikan Paksa Logika (Polisi Matematika)
+              if signal == 'SELL':
+                  if sl <= entry: sl = round(entry + (1.5 * atr), 5)
+                  if tp >= entry: tp = round(entry - (2.0 * atr), 5)
+              elif signal == 'BUY':
+                  if sl >= entry: sl = round(entry - (1.5 * atr), 5)
+                  if tp <= entry: tp = round(entry + (2.0 * atr), 5)
+                  
+              # Format string akhir
+              f_entry = f'{entry:.5f}'
+              f_sl = f'{sl:.5f}'
+              f_tp = f'{tp:.5f}'
+          except Exception as e:
+              f_entry, f_sl, f_tp = 'N/A', 'N/A', 'N/A'
+              print(f'Error parsing: {e}')
+
+          # 4. Buat Ringkasan
           summary = '## Ringkasan Eksekusi Forex\n\n'
           summary += f'- **Action**: {signal}\n'
-          summary += f'- **Entry**: {entry_match.group(1) if entry_match else \"N/A\"}\n'
-          summary += f'- **Stop Loss**: {sl_match.group(1) if sl_match else \"N/A\"}\n'
-          summary += f'- **Take Profit**: {tp_match.group(1) if tp_match else \"N/A\"}\n'
+          summary += f'- **Entry**: {f_entry}\n'
+          summary += f'- **Stop Loss**: {f_sl}\n'
+          summary += f'- **Take Profit**: {f_tp}\n'
           
-          # Cetak ke konsol GitHub Actions
           print(summary)
           
-          # Simpan ke file di root repo
           with open('RINGKASAN_TRADING.md', 'w') as f:
               f.write(summary)
           "
+
+      - name: Send to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          TEXT=$(cat RINGKASAN_TRADING.md)
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="${TEXT}" \
+            -d parse_mode="Markdown"
+            
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+            -F chat_id="${TELEGRAM_CHAT_ID}" \
+            -F document=@RINGKASAN_TRADING.md
       
       - name: Upload Summary as Artifact
         uses: actions/upload-artifact@v4
