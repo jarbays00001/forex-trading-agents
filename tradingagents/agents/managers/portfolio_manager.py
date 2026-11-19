@@ -17,7 +17,8 @@ from tradingagents.agents.structured import (
 )
 
 def create_portfolio_manager(llm):
-    structured_llm = bind_structured(llm, PortfolioDecision)
+    # PERBAIKAN: Menambahkan argumen ketiga "Portfolio Manager"
+    structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
 
     def portfolio_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state)
