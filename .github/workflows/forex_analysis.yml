@@ -21,6 +21,8 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install .
+          # Instal library untuk membuat grafik
+          pip install yfinance mplfinance pandas
 
       - name: Run TradingAgents Analysis
         env:
@@ -39,7 +41,6 @@ jobs:
           python3 -c "
           import re, glob, os
           
-          # Cari file laporan terbaru
           list_of_files = glob.glob('/home/runner/.tradingagents/logs/reports/*/complete_report.md')
           if not list_of_files:
               print('Laporan tidak ditemukan.')
@@ -49,30 +50,25 @@ jobs:
           with open(latest_file, 'r') as f:
               content = f.read()
           
-          # 1. Ekstrak Sinyal
           rating_match = re.search(r'(?i)\*\*Rating\*\*:\s*([A-Za-z]+)', content)
           if not rating_match:
               rating_match = re.search(r'(?i)FINAL TRANSACTION PROPOSAL:\s*\*\*([A-Za-z]+)\*\*', content)
           signal = rating_match.group(1).upper() if rating_match else 'N/A'
 
-          # 2. Ekstrak Angka & ATR
           entry_str = re.search(r'[Ee]ntry(?:[^\d]*)([1-9]\d*[.,]\d+)', content)
           sl_str = re.search(r'[Ss]top[- ]?[Ll]oss(?:[^\d]*)([1-9]\d*[.,]\d+)', content)
           tp_str = re.search(r'[Tt]ake[- ]?[Pp]rofit(?:[^\d]*)([1-9]\d*[.,]\d+)', content)
           atr_str = re.search(r'(?i)ATR[^\d]*([0-9][.,]\d+)', content)
 
-          # 3. Validasi & Perbaikan Logika Matematika
           try:
               entry = float(entry_str.group(1).replace(',', '.')) if entry_str else 0.0
               sl = float(sl_str.group(1).replace(',', '.')) if sl_str else 0.0
               tp = float(tp_str.group(1).replace(',', '.')) if tp_str else 0.0
               atr = float(atr_str.group(1).replace(',', '.')) if atr_str else 0.0050
               
-              # Jika Entry terlalu pendek (misal 1.12), format ulang ke 5 desimal
               if entry > 0 and len(str(entry).split('.')[-1]) < 4:
                   entry = round(entry, 5)
                   
-              # Perbaikan Paksa Logika (Polisi Matematika)
               if signal == 'SELL':
                   if sl <= entry: sl = round(entry + (1.5 * atr), 5)
                   if tp >= entry: tp = round(entry - (2.0 * atr), 5)
@@ -80,15 +76,13 @@ jobs:
                   if sl >= entry: sl = round(entry - (1.5 * atr), 5)
                   if tp <= entry: tp = round(entry + (2.0 * atr), 5)
                   
-              # Format string akhir
               f_entry = f'{entry:.5f}'
               f_sl = f'{sl:.5f}'
               f_tp = f'{tp:.5f}'
           except Exception as e:
-              f_entry, f_sl, f_tp = 'N/A', 'N/A', 'N/A'
+              f_entry, f_sl, f_tp = '0.00000', '0.00000', '0.00000'
               print(f'Error parsing: {e}')
 
-          # 4. Buat Ringkasan
           summary = '## Ringkasan Eksekusi Forex\n\n'
           summary += f'- **Action**: {signal}\n'
           summary += f'- **Entry**: {f_entry}\n'
@@ -99,7 +93,19 @@ jobs:
           
           with open('RINGKASAN_TRADING.md', 'w') as f:
               f.write(summary)
+              
+          # SIMPAN NILAI KE ENVIRONMENT GITHUB UNTUK DIGUNAKAN LANGKAH SELANJUTNYA
+          with open(os.environ['GITHUB_ENV'], 'a') as env_file:
+              env_file.write(f'TRADE_ENTRY={f_entry}\n')
+              env_file.write(f'TRADE_SL={f_sl}\n')
+              env_file.write(f'TRADE_TP={f_tp}\n')
+              env_file.write(f'TRADE_SIGNAL={signal}\n')
           "
+
+      - name: Generate Chart
+        run: |
+          # Memanggil skrip pembuat chart dengan nilai dari langkah sebelumnya
+          python3 chart_generator.py "EURUSD=X" $TRADE_ENTRY $TRADE_SL $TRADE_TP $TRADE_SIGNAL
 
       - name: Send to Telegram
         env:
@@ -107,17 +113,24 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           TEXT=$(cat RINGKASAN_TRADING.md)
+          
+          # 1. Kirim pesan teks
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             -d text="${TEXT}" \
             -d parse_mode="Markdown"
             
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
-            -F chat_id="${TELEGRAM_CHAT_ID}" \
-            -F document=@RINGKASAN_TRADING.md
+          # 2. Kirim gambar grafik (jika berhasil dibuat)
+          if [ -f trade_chart.png ]; then
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto" \
+              -F chat_id="${TELEGRAM_CHAT_ID}" \
+              -F photo=@trade_chart.png
+          fi
       
       - name: Upload Summary as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: trading-summary
-          path: RINGKASAN_TRADING.md
+          path: |
+            RINGKASAN_TRADING.md
+            trade_chart.png
