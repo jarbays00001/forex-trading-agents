@@ -8,9 +8,17 @@ from tradingagents.agents.context import (
     get_portfolio_context_from_state,
 )
 from tradingagents.agents.rating import parse_rating
-from tradingagents.agents.structured import NO_EXTERNAL_TOOLS
+from tradingagents.agents.schemas import PortfolioDecision
+from tradingagents.agents.structured import (
+    NO_EXTERNAL_TOOLS,
+    bind_structured,
+    invoke_structured,
+    render_pm_decision,
+)
 
 def create_portfolio_manager(llm):
+    structured_llm = bind_structured(llm, PortfolioDecision)
+
     def portfolio_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state)
         portfolio_context = get_portfolio_context_from_state(state)
@@ -49,34 +57,35 @@ def create_portfolio_manager(llm):
 {history}
 
 ---
+
 Ground every conclusion in specific evidence from the analysts.
 
 ## Output
-Format your response EXACTLY as follows:
+Write these sections, in this order, starting with the rating:
+- **Rating**: exactly one of Buy / Overweight / Hold / Underweight / Sell
+- **Executive Summary**: A brief summary of the decision.
+- **Investment Thesis**: the evidence that decided it.
 
-**Rating**: [Choose exactly one: Buy / Overweight / Hold / Underweight / Sell]
-
-**Executive Summary**:
-[Write a brief summary]
-
-**Investment Thesis**:
-| Parameter | Nilai / Keputusan |
-| :--- | :--- |
-| **Entry Price** | [absolute price] |
-| **Stop Loss** | [absolute price] |
-| **Take Profit** | [absolute price] |
-| **Position Size** | [e.g., 1.5%] |
-
-[Write the evidence that decided it here.]
+CRITICAL INSTRUCTION: 
+1. First, determine the Trading Action (Rating: Buy, Sell, etc.).
+2. For the Stop Loss calculation, you MUST use the ATR (Average True Range) value mentioned in the technical report. Use this formula:
+   - If Action is Sell: Stop Loss = Entry Price + (1.5 * ATR)
+   - If Action is Buy: Stop Loss = Entry Price - (1.5 * ATR)
+3. You MUST explicitly extract and provide absolute values for these 4 fields in your structured output:
+   - entry_price (e.g., 1.1050)
+   - stop_loss (e.g., 1.1102)
+   - take_profit (e.g., 1.0900)
+   - position_size (e.g., 1.5%)
 
 {NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
 
-        # BYPASS PYDANTIC: Ambil teks mentah langsung dari AI
-        response = llm.invoke(prompt)
-        final_trade_decision = response.content
-        
-        # Baca rating dari teks
-        final_rating = parse_rating(final_trade_decision)
+        decision = invoke_structured(structured_llm, prompt)
+        if decision is not None:
+            final_trade_decision = render_pm_decision(decision)
+            final_rating = decision.rating.value
+        else:
+            final_trade_decision = llm.invoke(prompt).content
+            final_rating = parse_rating(final_trade_decision)
 
         new_risk_debate_state = {
             "history": risk_debate_state["history"],
