@@ -17,7 +17,7 @@ from tradingagents.agents.structured import (
 )
 
 def create_portfolio_manager(llm):
-    # PERBAIKAN: Menambahkan argumen ketiga "Portfolio Manager"
+    # Menambahkan argumen ketiga "Portfolio Manager"
     structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
 
     def portfolio_manager_node(state) -> dict:
@@ -80,7 +80,9 @@ CRITICAL INSTRUCTION:
 
 {NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
 
-        decision = invoke_structured(structured_llm, prompt)
+        # PERBAIKAN: Menambahkan "Portfolio Manager" di sini
+        decision = invoke_structured(structured_llm, prompt, "Portfolio Manager")
+        
         if decision is not None:
             final_trade_decision = render_pm_decision(decision)
             final_rating = decision.rating.value
