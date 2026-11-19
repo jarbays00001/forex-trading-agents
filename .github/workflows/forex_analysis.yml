@@ -28,7 +28,6 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           TRADINGAGENTS_DEEP_THINK_LLM: gemini-3.1-flash-lite
           TRADINGAGENTS_QUICK_THINK_LLM: gemini-3.1-flash-lite
-          # Variabel di bawah ini yang menyelesaikan error "No terminal"
           TRADINGAGENTS_OUTPUT_LANGUAGE: "English"
           TRADINGAGENTS_MAX_DEBATE_ROUNDS: "1"
           TRADINGAGENTS_MAX_RISK_ROUNDS: "1"
@@ -52,10 +51,10 @@ jobs:
           with open(latest_file, 'r') as f:
               content = f.read()
           
-          # Cari pola angka (Entry, SL, TP)
-          entry_match = re.search(r'[Ee]ntry[^\d]*([\d.,]+)', content)
-          sl_match = re.search(r'[Ss]top[- ]?[Ll]oss[^\d]*([\d.,]+)', content)
-          tp_match = re.search(r'[Tt]ake[- ]?[Pp]rofit[^\d]*([\d.,]+)', content)
+          # Cari pola angka desimal (misal: 1.1050 atau 1,1050)
+          entry_match = re.search(r'[Ee]ntry(?:[^\d]*)([1-9]\d*[.,]\d{2,5})', content)
+          sl_match = re.search(r'[Ss]top[- ]?[Ll]oss(?:[^\d]*)([1-9]\d*[.,]\d{2,5})', content)
+          tp_match = re.search(r'[Tt]ake[- ]?[Pp]rofit(?:[^\d]*)([1-9]\d*[.,]\d{2,5})', content)
           
           # Buat ringkasan
           summary = '## Ringkasan Eksekusi Forex\n\n'
