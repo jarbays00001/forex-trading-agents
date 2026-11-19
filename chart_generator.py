@@ -1,5 +1,6 @@
 import yfinance as yf
 import mplfinance as mpf
+import pandas as pd
 import sys
 import datetime
 import os
