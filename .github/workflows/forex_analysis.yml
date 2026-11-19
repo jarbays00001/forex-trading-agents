@@ -51,13 +51,20 @@ jobs:
           with open(latest_file, 'r') as f:
               content = f.read()
           
-          # Cari pola angka desimal (misal: 1.1050 atau 1,1050)
+          # 1. Ekstrak Sinyal (BUY/SELL/HOLD)
+          rating_match = re.search(r'(?i)\*\*Rating\*\*:\s*([A-Za-z]+)', content)
+          if not rating_match:
+              rating_match = re.search(r'(?i)FINAL TRANSACTION PROPOSAL:\s*\*\*([A-Za-z]+)\*\*', content)
+          signal = rating_match.group(1).upper() if rating_match else 'N/A'
+
+          # 2. Ekstrak Angka (Entry, SL, TP)
           entry_match = re.search(r'[Ee]ntry(?:[^\d]*)([1-9]\d*[.,]\d{2,5})', content)
           sl_match = re.search(r'[Ss]top[- ]?[Ll]oss(?:[^\d]*)([1-9]\d*[.,]\d{2,5})', content)
           tp_match = re.search(r'[Tt]ake[- ]?[Pp]rofit(?:[^\d]*)([1-9]\d*[.,]\d{2,5})', content)
           
-          # Buat ringkasan
+          # 3. Buat Ringkasan
           summary = '## Ringkasan Eksekusi Forex\n\n'
+          summary += f'- **Action**: {signal}\n'
           summary += f'- **Entry**: {entry_match.group(1) if entry_match else \"N/A\"}\n'
           summary += f'- **Stop Loss**: {sl_match.group(1) if sl_match else \"N/A\"}\n'
           summary += f'- **Take Profit**: {tp_match.group(1) if tp_match else \"N/A\"}\n'
@@ -65,7 +72,7 @@ jobs:
           # Cetak ke konsol GitHub Actions
           print(summary)
           
-          # Simpan ke file di root repo agar bisa di-upload
+          # Simpan ke file di root repo
           with open('RINGKASAN_TRADING.md', 'w') as f:
               f.write(summary)
           "
