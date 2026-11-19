@@ -21,8 +21,8 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install .
-          # Instal library untuk membuat grafik
-          pip install yfinance mplfinance pandas
+          # Instal library untuk membuat grafik beserta dependensinya (six)
+          pip install yfinance mplfinance pandas six
 
       - name: Run TradingAgents Analysis
         env:
