@@ -17,7 +17,6 @@ from tradingagents.agents.structured import (
 )
 
 def create_portfolio_manager(llm):
-    # Menambahkan argumen ketiga "Portfolio Manager"
     structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
 
     def portfolio_manager_node(state) -> dict:
@@ -58,7 +57,6 @@ def create_portfolio_manager(llm):
 {history}
 
 ---
-
 Ground every conclusion in specific evidence from the analysts.
 
 ## Output
@@ -67,20 +65,17 @@ Write these sections, in this order, starting with the rating:
 - **Executive Summary**: A brief summary of the decision.
 - **Investment Thesis**: the evidence that decided it.
 
-CRITICAL INSTRUCTION: 
-1. First, determine the Trading Action (Rating: Buy, Sell, etc.).
-2. For the Stop Loss calculation, you MUST use the ATR (Average True Range) value mentioned in the technical report. Use this formula:
-   - If Action is Sell: Stop Loss = Entry Price + (1.5 * ATR)
-   - If Action is Buy: Stop Loss = Entry Price - (1.5 * ATR)
-3. You MUST explicitly extract and provide absolute values for these 4 fields in your structured output:
-   - entry_price (e.g., 1.1050)
-   - stop_loss (e.g., 1.1102)
-   - take_profit (e.g., 1.0900)
-   - position_size (e.g., 1.5%)
+CRITICAL INSTRUCTIONS:
+1. Action MUST be SELL, BUY, or HOLD.
+2. You MUST format all prices (entry_price, stop_loss, take_profit) with EXACTLY 5 decimal places (e.g., 1.12050).
+3. YOU MUST OBEY THESE MATHEMATICAL RULES:
+   - If Action is SELL: Stop Loss MUST be HIGHER than Entry Price.
+   - If Action is BUY: Stop Loss MUST be LOWER than Entry Price.
+   - Take Profit MUST always be better than Entry Price (Lower for SELL, Higher for BUY).
+4. Use ATR for Stop Loss distance.
 
 {NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
 
-        # PERBAIKAN: Menambahkan "Portfolio Manager" di sini
         decision = invoke_structured(structured_llm, prompt, "Portfolio Manager")
         
         if decision is not None:
