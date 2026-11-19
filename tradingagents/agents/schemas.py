@@ -1,4 +1,6 @@
-from enum import Enum
+import os
+os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "false"
+os.environ["GOOGLE_GENAI_USE_API_KEY"] = "true"from enum import Enum
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
